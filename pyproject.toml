@@ -64,17 +64,30 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
 ]
+# Documentation build — mirrors the sibling iontrap-dynamics docs stack
+# (mkdocs-material site + mkdocstrings API reference from docstrings).
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.25",
+]
+# Plotting stack for the docs tutorials (they ``import matplotlib``); also the
+# extra the tutorial-execution test job installs. Normal users do NOT need this.
+plot = [
+    "matplotlib>=3.8",
+]
 
 [project.urls]
 Homepage = "https://github.com/uwarring82/iontrap-structure"
 Repository = "https://github.com/uwarring82/iontrap-structure"
+Documentation = "https://uwarring82.github.io/iontrap-structure/"
 Issues = "https://github.com/uwarring82/iontrap-structure/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/iontrap_structure"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/docs", "/LICENSE", "/README.md", "/CHANGELOG.md", "/pyproject.toml"]
+include = ["/src", "/tests", "/tools", "/docs", "/mkdocs.yml", "/LICENSE", "/README.md", "/CHANGELOG.md", "/pyproject.toml"]
 
 # -----------------------------------------------------------------------------
 # Ruff — mirrors the parent iontrap-dynamics config (physics-notation friendly).
@@ -83,6 +96,12 @@ include = ["/src", "/tests", "/docs", "/LICENSE", "/README.md", "/CHANGELOG.md",
 target-version = "py311"
 line-length = 100
 src = ["src", "tests"]
+# Generated Colab notebooks are a DERIVED artifact (built from the Markdown
+# tutorials by tools/build_tutorial_notebooks.py). Ruff lints .ipynb, but the
+# tutorials are linear scripts whose physics-notation locals and cell structure
+# would trip style rules; they are validated by EXECUTION (the `tutorial`-marked
+# test), not by lint. Exclude them, mirroring the sibling iontrap-dynamics.
+extend-exclude = ["docs/tutorials/notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "NPY", "RUF"]
@@ -100,11 +119,14 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra --strict-markers"
 # Resolve the package from the src/ layout so the suite runs reproducibly even
 # without an editable install (and independent of how that install puts the
 # package on sys.path).
 pythonpath = ["src"]
+markers = [
+    "tutorial: executes a docs/tutorials page end-to-end (asserts are the oracle; needs the [plot] extra)",
+]
 
 [tool.mypy]
 python_version = "3.11"

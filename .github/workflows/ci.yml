@@ -37,7 +37,9 @@ jobs:
       - name: Type-check
         run: mypy
       - name: Test
-        run: pytest -q
+        # Deselect the docs/tutorials (they need the [plot] extra); they run in
+        # the dedicated `tutorials` job below.
+        run: pytest -m "not tutorial" -q
 
   # Independent packaging gate: build the wheel and install it into a clean
   # environment (no src/ on the path), then import + run a minimal computation.
@@ -72,3 +74,59 @@ jobs:
           assert modes.n_modes == 9 and np.all(modes.frequencies_rad_s > 0)
           print("smoke OK")
           PY
+
+  # Docs — build the mkdocs-material site with --strict (warnings are errors).
+  # Catches broken nav, dead internal links, and mkdocstrings/griffe failures.
+  docs:
+    name: Docs (mkdocs strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install docs extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,docs]"
+      - name: mkdocs build --strict
+        run: mkdocs build --strict
+
+  # Tutorials — execute every docs/tutorials page end-to-end so the embedded
+  # `assert`s (the oracle) actually run. Needs the [plot] extra (the tutorials
+  # import matplotlib), so it is a separate job from the lean unit-test matrix.
+  tutorials:
+    name: Tutorials (execute end-to-end)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dev + plot extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,plot]"
+      - name: Execute tutorials
+        run: pytest -m tutorial -q
+
+  # Notebooks — Colab freshness guard. The notebooks under
+  # docs/tutorials/notebooks/ are generated from the Markdown tutorials; the
+  # Markdown is the single source of truth. `--check` regenerates each in memory
+  # and fails on drift, so an edited tutorial cannot ship a stale notebook. The
+  # generator is stdlib-only — no package install needed.
+  notebooks:
+    name: Notebooks (Colab freshness)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify notebooks match their tutorials
+        run: |
+          if ! python tools/build_tutorial_notebooks.py --check; then
+            echo "::error::A committed Colab notebook is out of date with its Markdown tutorial."
+            echo "::error::Run 'python tools/build_tutorial_notebooks.py' and commit the result."
+            exit 1
+          fi

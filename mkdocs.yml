@@ -1,0 +1,101 @@
+site_name: iontrap-structure
+site_description: Classical structural dynamics of trapped-ion crystals — equilibrium configurations and normal modes
+# site_url is the GitHub Pages serving URL — used by mkdocs-material for
+# canonical link tags, sitemap.xml, and share-link helpers. Deployed by
+# .github/workflows/docs-deploy.yml; requires Settings → Pages → Source:
+# "GitHub Actions" to be set on the repo.
+site_url: https://uwarring82.github.io/iontrap-structure/
+repo_url: https://github.com/uwarring82/iontrap-structure
+repo_name: uwarring82/iontrap-structure
+
+# docs/LOG.md is the internal decision/findings lab-notebook (a dev artifact,
+# like the sibling's WP/LOGBOOK.md which is kept off the published site). It
+# stays in the repo but is excluded from the rendered site; this also keeps its
+# repo-relative links (e.g. ../CHANGELOG.md) out of mkdocs' strict link check.
+exclude_docs: |
+  LOG.md
+
+theme:
+  name: material
+  language: en
+  # `material/atom-variant` is an icon shortcode rendered as inline SVG —
+  # set under `theme.icon.logo`, not `theme.logo`. favicon is intentionally
+  # unset; Material's default ships until a favicon decision is taken. This
+  # mirrors the sibling iontrap-dynamics for cross-project visual consistency.
+  icon:
+    logo: material/atom-variant
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+  palette:
+    - scheme: default
+      primary: custom
+      accent: custom
+  font: false
+
+plugins:
+  - search
+  # API reference from docstrings (the `docs` extra ships mkdocstrings[python]).
+  # Requires the package importable at build time — the docs CI job installs
+  # `-e ".[dev,docs]"`, so griffe can resolve iontrap_structure.
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: false
+            show_root_heading: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            merge_init_into_class: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  # Material icon shortcodes (e.g. :material-atom-variant:) used on the
+  # welcome page. Depends on mkdocs-material's icon set on the Python path
+  # at build time — supplied by the `docs` extra.
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Welcome: index.md
+  - Overview: overview.md
+  - Getting Started: getting-started.md
+  - Conventions: conventions.md
+  - Validation: validation.md
+  - Provenance: PROVENANCE.md
+  - API Reference: api.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - "1. Your first ion crystal": tutorials/01_first_crystal.md
+      - "2. The ModeConfig handoff to iontrap-dynamics": tutorials/02_modeconfig_handoff.md
+      - "3. Mixed-species crystals": tutorials/03_mixed_species.md
+      - "4. The plasma coupling parameter Γ": tutorials/04_coupling_parameter.md
+      - "5. Stability and the linear→zigzag transition": tutorials/05_zigzag_stability.md
+
+extra_css:
+  # tokens.css defines the design tokens; extra.css consumes them. Keep the
+  # order — tokens.css must load first for the cascade. Both are mirrored from
+  # the sibling iontrap-dynamics (see docs/LICENCE for provenance).
+  - stylesheets/tokens.css
+  - stylesheets/extra.css

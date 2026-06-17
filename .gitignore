@@ -15,5 +15,9 @@ venv/
 .coverage
 htmlcov/
 
+# Docs build output (mkdocs)
+site/
+.cache/
+
 # OS / editor
 .DS_Store

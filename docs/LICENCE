@@ -1,0 +1,46 @@
+# LICENCE — docs/
+
+This folder contains the documentation layer for `iontrap-structure`. The
+package source under `src/` and `tests/` is **MIT** (see the repository-root
+[`LICENSE`](https://github.com/uwarring82/iontrap-structure/blob/main/LICENSE));
+the documentation here is licensed separately, mirroring the split used by the
+sibling project `iontrap-dynamics`.
+
+## Licence split inside `docs/`
+
+- **Coastline material** in the `docs/` root — `index.md`, `overview.md`,
+  `getting-started.md`, `conventions.md`, `validation.md`, `api.md`, and any
+  future top-level `.md` — is licensed under **CC BY-SA 4.0**
+  (`CC-BY-SA-4.0`).
+- **Sail material** under `docs/tutorials/` — the tutorials and their generated
+  Colab notebooks — is licensed under **CC BY-NC-SA 4.0**
+  (`CC-BY-NC-SA-4.0`).
+
+The distinction follows the sibling's convention: Coastline material states
+binding constraints (conventions, scope, API); Sail material is adaptive
+guidance with specific worked parameter choices.
+
+## Stylesheets
+
+- `stylesheets/tokens.css` — design tokens, **MIT**, vendored upstream
+  (see the in-file header). Mirrored from `iontrap-dynamics` for visual
+  consistency across the sibling pair.
+- `stylesheets/extra.css` — site-local styling, **CC BY-SA 4.0**. Mirrored from
+  `iontrap-dynamics`, where it originates; both repositories are maintained by
+  the same author.
+
+## Generated notebooks
+
+`docs/tutorials/notebooks/*.ipynb` are a **derived artifact** generated from the
+Markdown tutorials by `tools/build_tutorial_notebooks.py`. They carry the same
+**CC BY-NC-SA 4.0** licence as the tutorials they are built from.
+
+## Precedence
+
+If an individual file inside `docs/` declares a different SPDX identifier, that
+file-level declaration takes precedence over this folder-level default.
+
+## Endorsement Marker
+
+Local candidate framework under active stewardship. No external endorsement is
+implied.

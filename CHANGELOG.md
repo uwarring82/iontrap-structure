@@ -6,9 +6,27 @@ semantic versioning once it leaves pre-alpha.
 
 ## [Unreleased]
 
-Validation/hardening pass on the v0.1 slice — no public-API or physics changes
-(one defensive guard in `normal_modes`, below). See [`docs/LOG.md`](docs/LOG.md)
-for the decision/findings trail.
+Validation/hardening of the v0.1 slice plus a full documentation site — no
+public-API or physics changes (one defensive guard in `normal_modes`, below).
+See [`docs/LOG.md`](docs/LOG.md) for the decision/findings trail.
+
+### Documentation
+
+- **MkDocs + Material site** mirroring the sibling `iontrap-dynamics`: welcome,
+  overview (the producer/consumer boundary), getting-started, conventions
+  (§10/§11), validation (oracle catalogue), provenance, and an `mkdocstrings`
+  API reference. Branding (`tokens.css`/`extra.css`) is shared with the sibling.
+- **Five runnable tutorials**, each generated into a Colab notebook and executed
+  end-to-end in CI (asserts are the oracle): (1) first crystal, (2) the
+  `ModeConfig` handoff to `iontrap-dynamics`, (3) mixed-species crystals,
+  (4) the plasma coupling parameter Γ, (5) the linear→zigzag transition.
+- `tools/build_tutorial_notebooks.py` (Markdown → Colab notebooks, `--check`
+  freshness guard) and `tests/docs/test_tutorials_execute.py` (execute every
+  tutorial). New CI jobs `docs` (strict build), `tutorials`, `notebooks`, and a
+  `docs-deploy.yml` GitHub Pages workflow.
+- New `[docs]` / `[plot]` extras, a `tutorial` pytest marker, and a
+  `Documentation` project URL. Docs are dual-licensed (`docs/LICENCE`): Coastline
+  CC BY-SA 4.0, Sail tutorials CC BY-NC-SA 4.0; code stays MIT.
 
 ### Added
 
