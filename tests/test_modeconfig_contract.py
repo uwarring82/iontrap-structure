@@ -7,6 +7,9 @@ mode output must satisfy to be a valid ``ModeConfig`` payload (§9.1).
 
 from __future__ import annotations
 
+import sys
+import types
+
 import numpy as np
 import pytest
 from scipy.constants import atomic_mass, elementary_charge
@@ -58,8 +61,52 @@ def test_to_mode_configs_roundtrip() -> None:
         assert cfg.eigenvector_per_ion.shape == (3, 3)
 
 
+def test_to_mode_configs_accepts_custom_labels() -> None:
+    modes = _modes(2)
+    labels = [f"axial_{m}" for m in range(modes.n_modes)]
+    cfgs = modes.to_mode_configs(labels=labels)
+    assert [c.label for c in cfgs] == labels
+
+
+def test_result_n_ions_properties() -> None:
+    trap = HarmonicTrap(wx=TWO_PI * 8e6, wy=TWO_PI * 9e6, wz=TWO_PI * 1e6)
+    masses, charges = np.full(4, M_MG), np.full(4, Q)
+    eq = equilibrium(trap=trap, masses=masses, charges=charges)
+    modes = normal_modes(eq)
+    assert eq.n_ions == 4
+    assert modes.n_ions == 4
+    assert modes.n_modes == 12
+
+
+def test_to_mode_configs_uses_parent_class_when_importable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The export prefers the real ``iontrap_dynamics`` ModeConfig when importable.
+
+    Exercised deterministically (without the optional dependency) by injecting a
+    stand-in ``iontrap_dynamics.modes.ModeConfig`` into ``sys.modules`` — this is
+    the branch the real ``[interop]`` install would take.
+    """
+
+    class FakeModeConfig:
+        def __init__(self, *, label: str, frequency_rad_s: float, eigenvector_per_ion):
+            self.label = label
+            self.frequency_rad_s = frequency_rad_s
+            self.eigenvector_per_ion = eigenvector_per_ion
+
+    pkg = types.ModuleType("iontrap_dynamics")
+    mod = types.ModuleType("iontrap_dynamics.modes")
+    mod.ModeConfig = FakeModeConfig  # type: ignore[attr-defined]
+    pkg.modes = mod  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "iontrap_dynamics", pkg)
+    monkeypatch.setitem(sys.modules, "iontrap_dynamics.modes", mod)
+
+    modes = _modes(2)
+    cfgs = modes.to_mode_configs()
+    assert len(cfgs) == modes.n_modes
+    assert all(isinstance(c, FakeModeConfig) for c in cfgs)
+
+
 def test_to_mode_configs_uses_parent_if_available() -> None:
-    """If iontrap-dynamics is installed, the export yields real ModeConfig objects."""
+    """If iontrap-dynamics is genuinely installed, the export yields real objects."""
     ModeConfig = pytest.importorskip("iontrap_dynamics.modes").ModeConfig
     modes = _modes(2)
     cfgs = modes.to_mode_configs()

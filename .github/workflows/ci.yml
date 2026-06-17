@@ -21,7 +21,54 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+      - name: Import smoke test
+        # Import the package outside pytest (no conftest/plugins, cwd ≠ repo
+        # root) to catch a broken or missing editable install and import-time
+        # errors that `pytest`'s tool.pytest.ini_options.pythonpath = ["src"]
+        # would otherwise paper over. Note: with a *working* editable install
+        # this still resolves through src/ via the absolute-path .pth (cwd is
+        # irrelevant); the truly src-isolated, wheel-only check is the `package`
+        # job below.
+        run: |
+          cd "$RUNNER_TEMP"
+          python -c "import iontrap_structure; print(iontrap_structure.__file__)"
       - name: Lint
         run: ruff check .
+      - name: Type-check
+        run: mypy
       - name: Test
         run: pytest -q
+
+  # Independent packaging gate: build the wheel and install it into a clean
+  # environment (no src/ on the path), then import + run a minimal computation.
+  # Catches packaging breakage (missing modules, py.typed, bad metadata) that an
+  # editable install cannot.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel
+      - name: Install wheel in a clean venv and smoke-test
+        run: |
+          python -m venv /tmp/wheel-env
+          /tmp/wheel-env/bin/pip install --upgrade pip
+          /tmp/wheel-env/bin/pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          /tmp/wheel-env/bin/python - <<'PY'
+          import numpy as np
+          from scipy.constants import atomic_mass, elementary_charge
+          import iontrap_structure as s
+          from iontrap_structure import HarmonicTrap, equilibrium, normal_modes
+          print("installed at:", s.__file__, "version", s.__version__)
+          trap = HarmonicTrap(wx=2*np.pi*10e6, wy=2*np.pi*10e6, wz=2*np.pi*1e6)
+          m = np.full(3, 25*atomic_mass); q = np.full(3, elementary_charge)
+          modes = normal_modes(equilibrium(trap=trap, masses=m, charges=q))
+          assert modes.n_modes == 9 and np.all(modes.frequencies_rad_s > 0)
+          print("smoke OK")
+          PY

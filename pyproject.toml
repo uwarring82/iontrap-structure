@@ -101,10 +101,20 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+# Resolve the package from the src/ layout so the suite runs reproducibly even
+# without an editable install (and independent of how that install puts the
+# package on sys.path).
+pythonpath = ["src"]
 
 [tool.mypy]
 python_version = "3.11"
+# Resolve the package from the src/ layout directly, independent of how (or
+# whether) it is installed: hatchling's editable install uses an import-hook
+# redirect (_editable_impl_*.pth) that mypy's package finder cannot follow,
+# which makes discovery via the installed `packages = [...]` flaky.
+mypy_path = "src"
 packages = ["iontrap_structure"]
+explicit_package_bases = true
 strict = false
 warn_unused_ignores = true
 ignore_missing_imports = true

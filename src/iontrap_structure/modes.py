@@ -38,6 +38,23 @@ def normal_modes(eq: EquilibriumResult) -> ModeResult:
     D = 0.5 * (D + D.T)  # symmetrise against round-off before eigh
 
     eigvals, eigvecs = np.linalg.eigh(D)
+
+    # eigvals are the squared mode frequencies ω². eigh returns tiny *negative*
+    # values for genuine zero/soft modes (round-off of order machine-ε · ‖D‖);
+    # those are clipped to zero below. A *materially* negative eigenvalue instead
+    # means the configuration is a saddle rather than a minimum (e.g. an on-axis
+    # chain past the linear→zigzag instability) or the Hessian was mis-assembled
+    # — surface that, rather than silently turning it into a real frequency via
+    # the clip. Tolerance scales with the spectrum so it tracks the trap stiffness.
+    tol = 1e-9 * max(float(np.max(np.abs(eigvals))), 1.0)
+    if float(np.min(eigvals)) < -tol:
+        raise ValueError(
+            "Dynamical matrix is not positive semi-definite (min eigenvalue "
+            f"{float(np.min(eigvals)):.3e} rad²·s⁻² < -{tol:.3e}): the configuration "
+            "is not a stable equilibrium, so its normal-mode frequencies are not "
+            "all real. Check the trap (sufficient confinement?) and that the "
+            "positions are a minimum, not a saddle."
+        )
     frequencies = np.sqrt(np.clip(eigvals, 0.0, None))
 
     # Columns of eigvecs are the modes; reshape each to (N, 3).
