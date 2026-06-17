@@ -13,6 +13,67 @@ Newest entries first.
 
 ---
 
+## 2026-06-17 — Documentation site + reproducible tutorials (mirroring the sibling)
+
+**Context.** With the v0.1 foundation validated, stood up a proper documentation
+site. Decision: mirror the sibling `iontrap-dynamics` docs stack 1:1 rather than
+invent a new one — same tooling, structure, branding, and reproducibility
+guarantees — so the sibling pair is consistent. (Recon was straightforward: a
+local clone of the sibling exists alongside this repo.)
+
+**What was built.**
+
+- **MkDocs + Material + mkdocstrings.** `mkdocs.yml` mirrors the sibling (custom
+  palette, `tokens.css`/`extra.css` copied verbatim for visual consistency — see
+  `docs/LICENCE` for provenance). Added an `mkdocstrings` API-reference page
+  (`api.md`), a small enhancement over the sibling (which ships the dep but no
+  API page yet). Narrative pages: index (hero), overview (the producer/consumer
+  boundary), getting-started, conventions (§10/§11), validation (the oracle
+  catalogue). `PROVENANCE.md` is on the site; the internal `LOG.md` is
+  `exclude_docs`-ed (a dev artifact, like the sibling's off-site WP/LOGBOOK).
+- **Reproducible tutorials — the FAIR core.** Markdown is the single source of
+  truth; `tools/build_tutorial_notebooks.py` (adapted from the sibling) generates
+  Colab notebooks, with a `--check` freshness guard.
+  `tests/docs/test_tutorials_execute.py` executes every tutorial end-to-end with
+  its embedded `assert`s as the oracle (marked `tutorial`, needs `[plot]`).
+- **Five tutorials**, drafted-and-self-verified in parallel by a Workflow (each
+  agent ran the actual pytest harness on its page until green), then manually
+  reviewed: (1) first crystal — James-1998 positions, ω_z COM, √3 ω_z stretch to
+  machine precision; (2) the ModeConfig handoff (runs with or without
+  iontrap-dynamics via the fallback); (3) mixed-species — the symmetric-D vs
+  M⁻¹H contrast, generalized-eigenproblem residual ~8e-15; (4) Γ — exact 1/T
+  scaling, Γ(1 mK)≈3728 ≫ 170, crossover ~22 mK; (5) linear→zigzag — soft mode,
+  critical aspect ratio ω_r/ω_z ≈ 2.5 for N=5, and the stability guard firing.
+- **CI/CD.** Added `docs` (strict build), `tutorials` (execute), `notebooks`
+  (freshness) jobs to `ci.yml` (matrix deselects `tutorial`), and a
+  `docs-deploy.yml` Pages workflow. New `[docs]`/`[plot]` extras, a `tutorial`
+  marker, and `--strict-markers`.
+
+**Findings / decisions worth recording.**
+
+- The Workflow's first launch failed entirely on transient API 529s (0 tokens);
+  a clean retry produced all five. Recorded as a reminder that workflow agents
+  inherit upstream availability — retry is the right response, not a redesign.
+- Ruff lints `.ipynb`, so the *generated* notebooks tripped style rules
+  (physics-notation locals, etc.). Excluded `docs/tutorials/notebooks` from ruff
+  (mirroring the sibling): the notebooks are a derived artifact validated by
+  *execution*, not lint. Separately fixed one genuine wart — an unused `k_B`
+  import in tutorial 4's source.
+- `mkdocs build --strict` swept the pre-existing `docs/LOG.md` and
+  `docs/PROVENANCE.md` into the build; resolved by putting Provenance in the nav
+  and `exclude_docs`-ing the lab-notebook (whose `../CHANGELOG.md` link does not
+  resolve inside the site tree).
+- Normalised two cosmetic inconsistencies the (529-failed) review agent would
+  have caught: tutorial 5's Next-steps link format and tutorial 3's numbered
+  link text now match the dominant `**[Title](file.md)** — …` style.
+
+**Outcome.** `ruff` clean, `mypy` clean, `mkdocs build --strict` clean, notebook
+freshness clean, `pytest` 58 passed / 1 skipped (53 unit + 5 tutorials; the skip
+is the optional iontrap-dynamics interop export). No package source or public-API
+change — docs/tooling/tests only.
+
+---
+
 ## 2026-06-17 — Review follow-ups (packaging gate, stability guard, audit-trail fix)
 
 **Context.** Acting on external review of the hardening pass below. Six points,
