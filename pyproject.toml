@@ -1,0 +1,110 @@
+# =============================================================================
+# pyproject.toml — iontrap-structure
+#
+# Classical structural dynamics of trapped-ion crystals: equilibrium
+# configurations and normal modes, exporting to the iontrap-dynamics
+# `ModeConfig` contract. MIT-licensed; no copyleft runtime dependencies.
+#
+# Bootstrapped from the frozen origin task card in iontrap-dynamics:
+#   task cards/TC-structural-dynamics-foundation-survey.md (v1.0).
+# =============================================================================
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "iontrap-structure"
+version = "0.1.0"
+description = "Classical structural dynamics of trapped-ion crystals — equilibrium configurations and normal modes"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "U. Warring", email = "ulrich.warring@physik.uni-freiburg.de" },
+]
+keywords = [
+    "trapped-ions",
+    "coulomb-crystal",
+    "normal-modes",
+    "equilibrium",
+    "structural-dynamics",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=1.24,<3",
+    "scipy>=1.10,<2",
+]
+
+[project.optional-dependencies]
+# Order-parameter / structural-analysis layer. freud's current release line
+# requires Python ≥3.12 (verified 2026-06-17), hence the environment marker.
+analysis = [
+    "freud-analysis>=3.0; python_version >= '3.12'",
+]
+# Optional interop: emit real iontrap_dynamics.ModeConfig objects.
+interop = [
+    "iontrap-dynamics>=0.6",
+]
+dev = [
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/uwarring82/iontrap-structure"
+Repository = "https://github.com/uwarring82/iontrap-structure"
+Issues = "https://github.com/uwarring82/iontrap-structure/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/iontrap_structure"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/docs", "/LICENSE", "/README.md", "/CHANGELOG.md", "/pyproject.toml"]
+
+# -----------------------------------------------------------------------------
+# Ruff — mirrors the parent iontrap-dynamics config (physics-notation friendly).
+# -----------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "NPY", "RUF"]
+ignore = [
+    "E501",   # long lines tolerated for physics formulae
+    "N803",   # single-letter physics arg names (k_e, …)
+    "N806",   # physics notation for locals (H, D, N, …)
+    "RUF001", # ambiguous unicode in strings — physics notation (α, ε, ω, …)
+    "RUF002", # ambiguous unicode in docstrings — physics notation
+    "RUF003", # ambiguous unicode in comments — physics notation
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802", "N803", "N806"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["iontrap_structure"]
+strict = false
+warn_unused_ignores = true
+ignore_missing_imports = true
