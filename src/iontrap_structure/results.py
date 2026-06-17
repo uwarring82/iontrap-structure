@@ -92,11 +92,9 @@ class ModeResult:
         export is usable without the parent package present.
         """
         try:
-            from iontrap_dynamics.modes import (
-                ModeConfig as _ModeConfig,  # type: ignore[import-not-found]
-            )
+            from iontrap_dynamics.modes import ModeConfig as _ModeConfig
         except ImportError:
-            _ModeConfig = None  # type: ignore[assignment]
+            _ModeConfig = None
 
         out: list[Any] = []
         for m in range(self.n_modes):

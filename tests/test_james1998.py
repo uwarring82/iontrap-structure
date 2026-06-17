@@ -69,3 +69,27 @@ def test_universal_axial_modes(n: int) -> None:
         b = modes.eigenvectors[m]
         z_fraction = float(np.sum(b[:, 2] ** 2) / np.sum(b**2))
         assert z_fraction > 0.999
+
+
+@pytest.mark.parametrize("n", [2, 3, 5])
+def test_center_of_mass_modes_at_trap_frequencies(n: int) -> None:
+    """The three centre-of-mass modes sit at exactly ω_x, ω_y, ω_z, for any N.
+
+    Uniform translation along an axis leaves every pair separation unchanged, so
+    the Coulomb interaction contributes no restoring force and the bare trap
+    alone sets the frequency. For a single species the §11 eigenvector of each
+    COM mode is just that uniform translation. Axes are chosen non-degenerate so
+    each COM mode is uniquely identifiable.
+    """
+    trap = HarmonicTrap(wx=TWO_PI * 8e6, wy=TWO_PI * 9e6, wz=TWO_PI * 1e6)
+    masses, charges = _single_species(n)
+    modes = normal_modes(equilibrium(trap=trap, masses=masses, charges=charges))
+
+    flat = modes.eigenvectors.reshape(modes.n_modes, -1)
+    for axis, omega in enumerate(trap.omega):
+        e = np.zeros((n, 3))
+        e[:, axis] = 1.0 / np.sqrt(n)  # unit uniform translation along this axis
+        overlaps = np.abs(flat @ e.ravel())
+        m = int(np.argmax(overlaps))
+        assert overlaps[m] == pytest.approx(1.0, abs=1e-8)
+        assert modes.frequencies_rad_s[m] == pytest.approx(omega, rel=1e-8)
