@@ -15,15 +15,25 @@ from __future__ import annotations
 
 from .diagnostics import coupling_parameter, diagnostics, mean_nearest_neighbour_distance
 from .equilibrium import equilibrium, length_scale, linear_chain_guess
+from .mode_basis import ion_mode_basis
 from .modes import normal_modes
-from .results import EquilibriumResult, ModeConfigLike, ModeResult, StructuralDiagnostics
+from .results import (
+    ION_MODE_BASIS_SCHEMA_VERSION,
+    EquilibriumResult,
+    IonModeBasis,
+    ModeConfigLike,
+    ModeResult,
+    StructuralDiagnostics,
+)
 from .trap import HarmonicTrap
 
 __version__ = "0.1.0"
 
 __all__ = [
+    "ION_MODE_BASIS_SCHEMA_VERSION",
     "EquilibriumResult",
     "HarmonicTrap",
+    "IonModeBasis",
     "ModeConfigLike",
     "ModeResult",
     "StructuralDiagnostics",
@@ -31,6 +41,7 @@ __all__ = [
     "coupling_parameter",
     "diagnostics",
     "equilibrium",
+    "ion_mode_basis",
     "length_scale",
     "linear_chain_guess",
     "mean_nearest_neighbour_distance",
