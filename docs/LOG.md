@@ -13,6 +13,117 @@ Newest entries first.
 
 ---
 
+## 2026-07-15 — GT3b producer payload (`IonModeBasis` emitter)
+
+**Context.** Implemented the **producer half** of the ratified cross-repo GT3b
+handshake — the first `iontrap-structure` → `iontrap-dynamics` *dynamics*
+consumer. Spec: `taskcards/TC-ion-mode-basis-payload.md` (this repo, producer
+obligations only); authoritative consumer contract: `iontrap-dynamics`
+`task cards/TC-gt3b-ion-symplectic-adapter.md` v0.3 (commit `1a88145`). The
+sibling clone alongside this repo was read to confirm the contract; both are on
+`main`/feature branches.
+
+**What was built.**
+
+- `IonModeBasis` frozen/slots record (`results.py`) + `ion_mode_basis(modes,
+  trap, *, local_reference, charges)` builder (new `mode_basis.py`), following the
+  repo's "pure functions over frozen records" style. `asdict()`/`as_arrays()`
+  give the serialization-neutral wire form (plain arrays + primitive tags, no
+  shared runtime class → no cross-repo type coupling).
+- Fields per the schema table: `schema_version`, `frequencies_rad_s` `(3N,)`,
+  `mass_weighted_eigenvectors` `B` `(3N,3N)` with `B[3i+c,m] =
+  eigenvectors[m,i,c]`, `masses_kg` `(N,)`, `local_reference_frequencies_rad_s`
+  `(3N,)`, `coordinate_frame` tag, `normalization_weighting_tags`.
+- Contract test `tests/test_ion_mode_basis_contract.py` (mirrors
+  `test_modeconfig_contract.py`): shapes, `ω>0`, flattened Gram `= I` + per-mode
+  unit norm, row/column ordering round-trip, sign-canonicalisation convention,
+  both local-reference gauges, mixed-species, `asdict` neutrality, bit-for-bit
+  reproducibility.
+
+**Decisions / findings worth recording.**
+
+- **`schema_version = 1` (provisional).** The consumer (`iontrap-dynamics`) owns
+  the schema version (TC-GT3b §4), but its adapter module (`ion_modes.py`) is
+  **not yet implemented** — grepped the sibling: no `IonModeBasis` /
+  `ion_mode_basis` / `local_reference_frequencies` there, only an unrelated
+  migration-metadata `schema_version == 1`. So there is no *agreed* value to read
+  yet. Emitted `1` from a single named constant
+  (`ION_MODE_BASIS_SCHEMA_VERSION`, `results.py`) as the natural first version,
+  matching the sibling's existing `schema_version == 1` convention. **Flag:**
+  confirm/ratify this value when the consumer adapter lands; a mismatch is a hard
+  error there by design.
+- **D3 local-reference gauge.** Emitted `"trap_curvature"` (option i) as the
+  default and tagged the choice; also implemented `"diagonal_hessian"` (option
+  ii, `√(H_jj/m_j)` incl. Coulomb) since it is cheap and makes the tag drive real
+  behaviour. `ModeResult` carries no charges, so (ii) takes an explicit `charges=`
+  kwarg (must match the equilibrium) and raises if omitted; it also raises on a
+  negative diagonal curvature (a defocused coordinate has no real diagonal
+  reference frequency — use option i there). The gauge does not change ion-cut
+  `E_N` (a local squeeze), so revisiting the default later is safe.
+- **Eigenvector-sign gauge canonicalised** (largest-|component| positive, ties by
+  first index) so re-runs on the *same* `ModeResult` reproduce the payload exactly;
+  the residual degenerate-subspace rotation is left as the eigensolver returns it
+  and tagged `unpinned` (so payloads from two *independent* diagonalisations of a
+  degenerate spectrum may still differ within that subspace — the reproducibility
+  claim is scoped to a fixed `ModeResult`, not across LAPACK builds). Sign flips
+  preserve orthonormality, so Gram stays `I`.
+- **Independent check of what we emit.** Drove the actual flow for a mixed-species
+  (25+26 amu) 2-ion crystal and built the consumer's `S = diag(X, P)` from the
+  emitted arrays: `X Pᵀ = I` to 3.3e-16 (symplectic) and Gram `= I` to 3.3e-16 —
+  confirming the §3 mass-cancellation holds for unequal masses. The `S`-builder
+  itself stays in `iontrap-dynamics`; this was only a sanity check on the payload.
+- **No changes to the existing engine** or the legacy `to_mode_configs()` seam
+  (retained for per-mode consumers; explicitly *not* the GT3b handshake).
+
+### Review follow-up (same day)
+
+Reviewed against the sibling's now-present (untracked) consumer `ion_modes.py`
+(`materialize_ion_mode_basis`, `_CANONICAL_COORDINATE_FRAME`,
+`ION_MODE_BASIS_SCHEMA_VERSION = 1`). Producer math checked out; three fixes +
+one open cross-repo item:
+
+- **`coordinate_frame` reconciled to the consumer's canonical identifier
+  (blocker).** The consumer enforces `coordinate_frame` by *exact string match*
+  against `"ion-major-axis-minor;row=axes_per_ion*i+c;col=mode"`, so the earlier
+  prose string would have been **rejected**. Now emit that exact token; the
+  handedness / axis labels / mode-ordering / frequency↔column alignment moved into
+  `normalization_weighting_tags` (the frame has to stay a fixed, byte-comparable
+  id). Verified end-to-end: the real consumer materialises the payload and the
+  built `S` is symplectic to `SΩSᵀ=Ω` at 3.3e-16.
+- **Producer positivity/finiteness guard.** `ion_mode_basis` now rejects a
+  non-finite or non-positive mode/local frequency at the source. Rationale: the
+  docstring claimed `normal_modes` guarantees `ω > 0`, but it *clips* soft/zero
+  modes to 0 (raising only on a materially negative eigenvalue), so a critical
+  point (e.g. exactly at the linear→zigzag transition) or a hand-built
+  `ModeResult` could slip a zero through — and the consumer's `S`-map divides by
+  `ω`.
+- **`asdict()` returns detached copies.** Was `np.asarray` (returns the input when
+  the dtype already matches), so a mutating consumer could corrupt the frozen
+  payload; now `np.array(..., copy=True)`. `diagonal_hessian` negative-curvature
+  guard also switched to a spectrum-scaled tolerance (matching `normal_modes`) so
+  round-off noise doesn't spuriously fail a PSD Hessian.
+- **RESOLVED — issue #1 (cross-repo, consumer-side).** The natural handshake
+  `materialize_ion_mode_basis(**payload.asdict())` first raised `TypeError` because
+  the consumer signature had no `normalization_weighting_tags` parameter, yet the
+  schema requires the tags field. Producer was correct to emit them; the fix
+  landed in the consumer (`iontrap-dynamics` `ion_modes.py`, owner's edit): it now
+  accepts `normalization_weighting_tags`, validates it is a mapping, and **retains**
+  it on the materialized record as a read-only `MappingProxyType`. Verified
+  end-to-end (`ion_mode_basis(...).asdict()` splatted straight into
+  `materialize_ion_mode_basis`) for equal-mass, mixed-species, and both local-
+  reference gauges at N = 2, 3, 5: materialises, retains the tags, and the built
+  `S` is symplectic (`SΩSᵀ=Ω` residual ≤ 1.6e-15), with `ion_mode_indices`
+  returning the expected per-ion coordinate blocks. The consumer also hardened its
+  validation meanwhile (strict-`int` `schema_version`, complex-array rejection,
+  `(n,)`/`(n,n)` shape + `axes_per_ion ∈ {1,3}` checks, read-only record copies) —
+  the emitted payload passes all of them.
+
+Full non-tutorial suite green (85 passed, 1 skipped), `ruff check` + `mypy` +
+`mkdocs build --strict` all clean. All three review issues closed; producer +
+consumer handshake verified end-to-end.
+
+---
+
 ## 2026-06-17 — Documentation site + reproducible tutorials (mirroring the sibling)
 
 **Context.** With the v0.1 foundation validated, stood up a proper documentation

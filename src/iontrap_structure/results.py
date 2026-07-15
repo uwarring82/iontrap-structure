@@ -15,7 +15,16 @@ import numpy as np
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from .trap import HarmonicTrap
+
+#: ``IonModeBasis`` wire-format version. The *consumer* (``iontrap-dynamics``
+#: GT3b adapter) is the single versioning authority for this handshake schema
+#: (TC-GT3b §4); this repo owns only the physical **correctness** of the fields.
+#: A mismatch on the consumer side is a hard error, so the value is emitted from
+#: one place. ``1`` is the initial version (pending consumer ratification).
+ION_MODE_BASIS_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -106,6 +115,84 @@ class ModeResult:
             else:
                 out.append(ModeConfigLike(label=label, frequency_rad_s=freq, eigenvector_per_ion=vec))
         return out
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class IonModeBasis:
+    """Serialization-neutral normal-mode basis payload for the GT3b handshake.
+
+    The **producer half** of the cross-repo contract ratified in
+    ``iontrap-dynamics`` ``TC-gt3b-ion-symplectic-adapter.md`` (v0.3). It carries
+    plain arrays + metadata — **no shared runtime class** — so the ``iontrap-
+    dynamics`` adapter can validate and materialise its own record without either
+    repo type-coupling to the other. This repo guarantees the **physical
+    correctness** of the fields; the consumer owns ``schema_version`` and
+    shape/ordering validation. Build one with
+    :func:`iontrap_structure.mode_basis.ion_mode_basis`.
+
+    All the symplectic-map math (``S = diag(X, P)``, the §27 quadrature scaling,
+    covariance/log-negativity) lives in ``iontrap-dynamics`` — **not here**.
+
+    Attributes
+    ----------
+    schema_version
+        Wire-format version (:data:`ION_MODE_BASIS_SCHEMA_VERSION`).
+    frequencies_rad_s
+        Mode angular frequencies ``ω_m``, shape ``(3N,)``, all ``> 0``,
+        ascending. ``frequencies_rad_s[m]`` aligns with column ``m`` of ``B``.
+    mass_weighted_eigenvectors
+        The flattened mass-symmetrised eigenvector matrix ``B``, shape
+        ``(3N, 3N)``, with ``B[3i+c, m] = eigenvectors[m, i, c]`` (ion-major,
+        axis-minor rows; mode columns). Columns are orthonormal (Gram ``= I``).
+    masses_kg
+        Per-ion masses ``m_j``, shape ``(N,)``.
+    local_reference_frequencies_rad_s
+        Per-coordinate reference frequency ``ω_local,j``, shape ``(3N,)``, same
+        row ordering as ``B`` — a tagged local-coordinate gauge (TC-GT3b D3).
+    coordinate_frame
+        Human-/machine-readable statement of the row/column ordering, trap-frame
+        handedness, mode ordering, and frequency↔column alignment.
+    normalization_weighting_tags
+        Convention tags (e.g. ``mass_symmetrised``, ``per_mode_unit_norm``, the
+        eigenvector-sign convention, and the chosen ``local_reference``).
+    """
+
+    schema_version: int
+    frequencies_rad_s: NDArray[np.float64]
+    mass_weighted_eigenvectors: NDArray[np.float64]
+    masses_kg: NDArray[np.float64]
+    local_reference_frequencies_rad_s: NDArray[np.float64]
+    coordinate_frame: str
+    normalization_weighting_tags: Mapping[str, object]
+
+    @property
+    def n_ions(self) -> int:
+        return len(self.masses_kg)
+
+    @property
+    def n_modes(self) -> int:
+        return len(self.frequencies_rad_s)
+
+    def asdict(self) -> dict[str, Any]:
+        """Serialization-neutral wire form: plain arrays + primitive metadata.
+
+        Returns a fresh ``dict`` of NumPy arrays and Python primitives — no
+        reference to this class and no shared array buffers — suitable for the
+        consumer to validate and materialise into its own record (or to
+        JSON/npz-serialise). The tag mapping is copied to a plain ``dict``.
+        """
+        return {
+            "schema_version": int(self.schema_version),
+            "frequencies_rad_s": np.array(self.frequencies_rad_s, dtype=float, copy=True),
+            "mass_weighted_eigenvectors": np.array(self.mass_weighted_eigenvectors, dtype=float, copy=True),
+            "masses_kg": np.array(self.masses_kg, dtype=float, copy=True),
+            "local_reference_frequencies_rad_s": np.array(self.local_reference_frequencies_rad_s, dtype=float, copy=True),
+            "coordinate_frame": self.coordinate_frame,
+            "normalization_weighting_tags": dict(self.normalization_weighting_tags),
+        }
+
+    #: Alias for :meth:`asdict` — both names appear in the task-card spec.
+    as_arrays = asdict
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

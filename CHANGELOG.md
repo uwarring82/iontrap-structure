@@ -6,8 +6,9 @@ semantic versioning once it leaves pre-alpha.
 
 ## [Unreleased]
 
-Validation/hardening of the v0.1 slice plus a full documentation site — no
-public-API or physics changes (one defensive guard in `normal_modes`, below).
+Validation/hardening of the v0.1 slice, a full documentation site, and the
+**GT3b producer payload** (the first cross-repo *dynamics* handshake). No physics
+changes to the existing engine (one defensive guard in `normal_modes`, below).
 See [`docs/LOG.md`](docs/LOG.md) for the decision/findings trail.
 
 ### Documentation
@@ -30,6 +31,26 @@ See [`docs/LOG.md`](docs/LOG.md) for the decision/findings trail.
 
 ### Added
 
+- **`IonModeBasis` payload + `ion_mode_basis(...)` emitter** — the producer half
+  of the ratified cross-repo GT3b handshake with `iontrap-dynamics`
+  (`taskcards/TC-ion-mode-basis-payload.md`; consumer contract `iontrap-dynamics`
+  `TC-gt3b-ion-symplectic-adapter.md` v0.3). A versioned, **serialization-neutral**
+  payload (plain arrays + tags via `asdict()`/`as_arrays()`, no shared runtime
+  class) carrying the flattened mass-symmetrised basis `B` `(3N, 3N)`, the mode
+  frequencies `ω_m`, the masses, and a **tagged local-reference gauge**
+  `local_reference_frequencies_rad_s` (D3: default `"trap_curvature"`, optional
+  `"diagonal_hessian"`). Wire invariants are fixed explicitly: `coordinate_frame`
+  is the consumer's canonical identifier (`ion-major-axis-minor;row=axes_per_ion*i+c;col=mode`,
+  compared by exact match on the consumer side), with handedness / axis labels /
+  frequency↔column alignment / mode ordering carried in the tags, and the
+  eigenvector-sign gauge canonicalised (largest-|component| positive) so re-runs on
+  a given `ModeResult` reproduce the payload exactly. A positivity/finiteness guard
+  rejects zero/soft or non-finite frequencies at the source. This repo stays
+  classical structural dynamics — the `S = diag(X, P)` symplectic-map math stays
+  in `iontrap-dynamics`. Contract-tested in `tests/test_ion_mode_basis_contract.py`
+  (shapes, `ω > 0`, flattened Gram `= I`, ordering round-trip, both local-reference
+  gauges, reproducibility). The legacy `to_mode_configs()` per-mode seam is
+  unchanged and is **not** the GT3b handshake.
 - Mixed-species normal-mode validation (`tests/test_mixed_species.py`): the §11
   contract for unequal masses, the centre-of-mass frequency oracle (ω_c is a
   mode for any masses), an oracle-free generalized-eigenproblem residual
