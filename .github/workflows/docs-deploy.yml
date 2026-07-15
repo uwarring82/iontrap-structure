@@ -54,6 +54,12 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          # Enable Pages (as a GitHub Actions source) on first run if it isn't
+          # already, so the deploy is self-sufficient and doesn't fail the way
+          # the very first post-merge run did (Pages not yet enabled → "Get
+          # Pages site failed"). No-op once Pages is configured.
+          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
